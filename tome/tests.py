@@ -20,6 +20,15 @@ class TestTome(unittest.TestCase):
         x = torch.randn(4, s, 16)
         tm(x)
 
+    def test_merge_mask(self):
+        k = torch.randn(4, 4, 1)
+        tm = TokenMerger(k, 1)
+        mask = torch.randn(4, 4, 4) > 0
+        merged_mask = tm.merge(mask)
+        unmerged_mask = tm.unmerge(merged_mask)
+        self.assertEqual(mask.shape, unmerged_mask.shape)
+        self.assertEqual(mask.dtype, unmerged_mask.dtype)
+
     def test_merge_unmerge_with_ids(self):
         k = torch.randn(1, 32, 1)
         ids = torch.tensor(

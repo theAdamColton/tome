@@ -54,6 +54,7 @@ class TokenMerger:
             if sequence_ids is not None:
                 a_ids, b_ids = sequence_ids[:, ::2], sequence_ids[:, 1::2]
                 attention_mask = a_ids.unsqueeze(2) == b_ids.unsqueeze(1)
+                # scores where ids are not equal should be -inf
                 scores.masked_fill_(~attention_mask, torch.finfo(scores.dtype).min)
                 pad_mask = (a_ids == mask_id).unsqueeze(2) & (
                     b_ids == mask_id
@@ -69,8 +70,11 @@ class TokenMerger:
             dst_idx = node_idx.gather(dim=1, index=src_idx)  # shape: b r 1
 
             if sequence_ids is not None:
-                # Merges ids, but doesn't do any reduction on merged tokens,
-                # but takes the items from set b.
+                # Merges ids, but doesn't do any reduction on merged ids,
+                # Simply takes the items from set b.
+                # The reduction is uncessary because each set of merged ids is assumed to be identical,
+                # meaning that ids are not merged with ids that are different.
+                # An id 0 shouldn't be be merged with any id that is not 0.
                 unm_ids = a_ids.gather(dim=1, index=unm_idx)
                 a_ids = a_ids.gather(dim=1, index=src_idx)
                 assert torch.equal(
@@ -101,9 +105,13 @@ class TokenMerger:
         a, b = x[:, ::2], x[:, 1::2]
         unm = a.gather(dim=1, index=expand_x_to_y(self.unm_idx, a))
         a = a.gather(dim=1, index=expand_x_to_y(self.src_idx, a))
+
         og_dtype = b.dtype
         b = b.float()
+        a = a.float()
+
         # step 4.) Merge connected tokens
+
         b = b.scatter_reduce(
             dim=1,
             index=expand_x_to_y(self.dst_idx, b),
