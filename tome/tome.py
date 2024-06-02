@@ -14,18 +14,18 @@ def expand_x_to_y(y, x):
 
 class TokenMerger:
     """
-    merges and merges tokens, exploiting the token to token similarity in k.
+    Merges and merges tokens, exploiting the token to token similarity in k.
 
     example:
-    batch_size = 32
-    sequence_length = 128
-    hidden_size = 768
-    r = 32
-    keys = torch.randn(batch_size, sequence_length, hidden_size)
-    tm = TokenMerger(k, r)
-    x = torch.randn(batch_size, sequence_length, 64)
-    merged_x = tm(x) # shape: batch_size, r, 64
-    unmerged_x = tm.unmerge(merged_x) # shape: batch_size, sequence_length, 64
+        >>> batch_size = 32
+        >>> sequence_length = 128
+        >>> hidden_size = 768
+        >>> r = 32
+        >>> keys = torch.randn(batch_size, sequence_length, hidden_size)
+        >>> tm = TokenMerger(keys, r)
+        >>> x = torch.randn(batch_size, sequence_length, 64)
+        >>> merged_x = tm(x) # shape: batch_size, sequence_length - r, 64
+        >>> unmerged_x = tm.unmerge(merged_x) # shape: batch_size, sequence_length, 64
     """
 
     @torch.no_grad()
@@ -41,6 +41,7 @@ class TokenMerger:
             Optional
             shape: batch, sequence length
 
+        mask_id: integer id of the sequence id that is considered a part of the sequence padding.
         """
         sequence_length = k.shape[1]
         assert sequence_length // 2 >= r
