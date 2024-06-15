@@ -26,7 +26,7 @@ class TestTome(unittest.TestCase):
         tm = TokenMerger(k, 1)
         mask = torch.randn(4, 4, 4) > 0
         merged_mask = tm.merge(mask)
-        unmerged_mask = tm.unmerge(merged_mask)
+        unmerged_mask = tm.unmerge_all(merged_mask)
         self.assertEqual(mask.shape, unmerged_mask.shape)
         self.assertEqual(mask.dtype, unmerged_mask.dtype)
 
@@ -37,7 +37,7 @@ class TestTome(unittest.TestCase):
         )
         tm = TokenMerger(k, 16, sequence_ids=ids)
         merged_ids = tm.merged_ids
-        unmerged_ids = tm.unmerge(merged_ids)
+        unmerged_ids = tm.unmerge_all(merged_ids)
         self.assertTrue(torch.equal(ids, unmerged_ids))
 
     def test_merge_layers(self):
@@ -68,12 +68,12 @@ class TestTome(unittest.TestCase):
         merged_x = tm(x)
 
         self.assertEqual((1, 6, 2), merged_x.shape)
-        rec_x = tm.unmerge(merged_x)
+        rec_x = tm.unmerge_all(merged_x)
         self.assertEqual((1, 9, 2), rec_x.shape)
 
         # merges x a second time
         tm = TokenMerger(merged_x, 2, adm=tm.adm)
         merged_x = tm(merged_x)
         self.assertEqual((1, 4, 2), merged_x.shape)
-        rec_x = tm.unmerge(merged_x)
+        rec_x = tm.unmerge_all(merged_x)
         self.assertEqual((1, 9, 2), rec_x.shape)

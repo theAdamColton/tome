@@ -19,6 +19,33 @@ def expand_trailing(y, x):
     return y
 
 
+def merge_all(x: torch.Tensor, adm: torch.Tensor) -> torch.Tensor:
+    """
+    composes multiple merges all at once
+    Allows you to merge a original tensor in a single step rather than
+    using tm.merge() however many times merging was applied.
+    """
+    b, s, *_ = x.shape
+    assert s == adm.size(
+        -1
+    ), "x needs to have the same sequence length as the original input"
+    normalized_adm = adm / adm.sum(-1, keepdim=True)
+    return einx.dot("b s2 s1, b s1 ... -> b s2 ...", normalized_adm, x)
+
+
+def unmerge_all(x: torch.Tensor, adm: torch.Tensor) -> torch.Tensor:
+    """
+    x shape: (batch, sequence_length - r, ...)
+
+    Undo one or more TokenMerger.merge calls
+
+    returns a tensor of shape: (batch, original_sequence_length, ...)
+    """
+
+    unmerge_indices = adm.argmax(dim=1)
+    return x.gather(dim=1, index=expand_trailing(unmerge_indices, x))
+
+
 class TokenMerger:
     """
     Merges and merges tokens, exploiting the token to token similarity in k.
@@ -141,7 +168,6 @@ class TokenMerger:
             assert adm.size(0) == k.size(0)
             assert adm.size(1) == sequence_length
         self.adm = self.merge(adm, "amax")
-        self.unmerge_indices = self.adm.argmax(dim=1)
 
     def __call__(self, x: torch.Tensor, mode: str = "mean") -> torch.Tensor:
         return self.merge(x, mode)
@@ -177,13 +203,8 @@ class TokenMerger:
         # step 5.) Concatenate sets back together
         return torch.cat((unm, b), 1)
 
-    def unmerge(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        x shape: (batch, sequence_length - r, ...)
+    def unmerge_all(self, x: torch.Tensor) -> torch.Tensor:
+        return unmerge_all(x, self.adm)
 
-        Undo one or more TokenMerger.merge calls
-
-        returns a tensor of shape: (batch, original_sequence_length, ...)
-        """
-
-        return x.gather(dim=1, index=expand_trailing(self.unmerge_indices, x))
+    def merge_all(self, x):
+        return merge_all(x, self.adm)
