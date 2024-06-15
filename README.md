@@ -8,8 +8,13 @@ This code is meant to be simple and easy to apply to new models. Token merging i
 
 These were created using a Dinov2 small model using the `example_dinov2.py` script.
 
-![example_output_003](https://github.com/theAdamColton/tome/assets/72479734/c2a118af-be1d-4989-8246-8b396effe767)
-![example_output_002](https://github.com/theAdamColton/tome/assets/72479734/528cf398-b7a9-4454-9be6-eb455b7b4c7f)
+The top image is the original. The middle image shows the clusterings of merged tokens; each color is a unique cluster. These clusters were obtained using the key-to-key similarities of the DinoV2 ViT-S. The bottom image is the result of merging the pixel values using the cluster assignments.
+
+![on beach](figures/example_output_003.jpg)
+![dog](figures/example_output_002.jpg)
+![vilnius](figures/example_output_004.jpg)
+![timp](figures/example_output_006.jpg)
+![talinn](figures/example_output_008.jpg)
 
 
 # Usage
