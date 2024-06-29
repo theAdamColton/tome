@@ -77,3 +77,48 @@ class TestTome(unittest.TestCase):
         self.assertEqual((1, 4, 2), merged_x.shape)
         rec_x = tm.unmerge(merged_x)
         self.assertEqual((1, 9, 2), rec_x.shape)
+
+    def test_merge_chain(self):
+        s = 8
+        x = torch.randn(1, s, 10)
+        k = torch.randn(1, s, 10)
+        r = 2
+        tm = TokenMerger(k, r)
+        k2 = torch.randn(1, s - r, 10)
+        tm2 = tm.chain(k2, r)
+
+        x1 = tm.merge(x)
+        x2 = tm2.merge(x1)
+
+        self.assertEqual(x1.size(1), s - r)
+        self.assertEqual(x2.size(1), s - r - r)
+
+        x_hat = tm2.unmerge(x2)
+
+        self.assertEqual(x_hat.size(1), s)
+
+    def test_merge_mlerp(self):
+        """
+        on average, mlerp merging returns tensors with larger magnitudes
+        """
+        s = 8
+        r = 2
+        z = 16
+
+        trials = 100
+        n = 0
+        n_bigger = 0
+
+        for _ in range(trials):
+            x = torch.randn(1, s, z)
+            k = torch.randn(1, s, 1)
+            tm = TokenMerger(k, r)
+            x_avg_merged = tm.merge(x, mode="mean")
+            x_mlerp_merged = tm.merge(x, mode="mlerp")
+            n_bigger += (x_mlerp_merged.abs() > x_avg_merged.abs()).sum()
+            n += x_mlerp_merged.shape[0] * x_mlerp_merged.shape[1]
+
+        # p measures how many times the avg_norm was bigger than mlerp_norm
+        p = n_bigger / n
+
+        self.assertGreaterEqual(p, 0.95)

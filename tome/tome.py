@@ -1,3 +1,4 @@
+from typing import Optional
 import einx
 import torch
 
@@ -117,6 +118,7 @@ class TokenMerger:
         self.unmerged_sequence_length = k.shape[1]
         self.merged_sequence_length = unm_idx.size(1) + b.size(1)
         self.r = r
+        self.mask_id = mask_id
 
         if sequence_ids is not None:
             # Merges ids, but doesn't do any reduction on merged ids,
@@ -146,6 +148,13 @@ class TokenMerger:
     def __call__(self, x: torch.Tensor, mode: str = "mean") -> torch.Tensor:
         return self.merge(x, mode)
 
+    def chain(self, k: torch.Tensor, r: Optional[int] = None):
+        prev = self
+        next = TokenMerger(
+            k, prev.r if r is None else r, prev.adm, prev.merged_ids, prev.mask_id
+        )
+        return next
+
     def merge(self, x: torch.Tensor, mode: str = "mean") -> torch.Tensor:
         """
         x shape: (batch, sequence length, ...)
@@ -165,12 +174,24 @@ class TokenMerger:
 
         # step 4.) Merge connected tokens
 
-        b = b.scatter_reduce(
-            dim=1,
-            index=expand_trailing(self.dst_idx, b),
-            src=a,
-            reduce=mode,
-        )
+        if mode == "mlerp":
+            b = b.scatter_reduce(
+                dim=1, index=expand_trailing(self.dst_idx, b), src=a, reduce="mean"
+            )
+            n = torch.abs(b).scatter_reduce(
+                dim=1,
+                index=expand_trailing(self.dst_idx, b),
+                src=torch.abs(a),
+                reduce="max",
+            )
+            b = (b / torch.abs(b)) * n
+        else:
+            b = b.scatter_reduce(
+                dim=1,
+                index=expand_trailing(self.dst_idx, b),
+                src=a,
+                reduce=mode,
+            )
 
         b = b.to(og_dtype)
 
