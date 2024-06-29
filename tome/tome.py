@@ -211,6 +211,8 @@ class TokenMerger:
                 reduce="max",
             )
             b = (b / torch.abs(b)) * n
+        elif mode == "drop":
+            pass
         else:
             b = b.scatter_reduce(
                 dim=1,
