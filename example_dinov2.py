@@ -1,3 +1,8 @@
+"""
+this was tested with transformers version 4.39.1
+"""
+
+import os
 from glob import glob
 import einx
 import matplotlib
@@ -17,8 +22,6 @@ model = transformers.Dinov2Model.from_pretrained(model_url)
 processor = transformers.AutoProcessor.from_pretrained(model_url)
 
 r = 16
-
-tm = None
 
 
 def patched_attn_forward(
@@ -179,17 +182,44 @@ input_images = einx.multiply("b h w c, c", input_images, image_std)
 image_mean = torch.tensor(processor.image_mean)
 input_images = einx.add("b h w c, c", input_images, image_mean)
 
-for i, (token_image, image) in enumerate(zip(token_images, input_images)):
-    fig, axg = plt.subplots(2, 1)
+
+# merge input patches
+nph = input_images.shape[1] // patch_size
+input_patches = einx.rearrange(
+    "b (nph ph) (npw pw) c -> b (nph npw) c ph pw",
+    input_images,
+    ph=patch_size,
+    pw=patch_size,
+)
+# get rid of cls token
+adm = adm_obj[0][:, 1:, 1:]
+merged_input_patches = tome.tome.merge_all(input_patches, adm)
+unmerged_input_patches = tome.tome.unmerge_all(merged_input_patches, adm)
+rec_images = einx.rearrange(
+    "b (nph npw) c ph pw -> b (nph ph) (npw pw) c",
+    unmerged_input_patches,
+    ph=patch_size,
+    pw=patch_size,
+    nph=nph,
+)
+
+os.makedirs("figures/", exist_ok=True)
+for i, (token_image, image, rec_image) in enumerate(
+    zip(token_images, input_images, rec_images)
+):
+    fig, axg = plt.subplots(3)
 
     axg[0].imshow(image)
     axg[1].imshow(token_image)
+    axg[2].imshow(rec_image)
 
     plt.grid(False)
     axg[0].set_xticks([])
     axg[0].set_yticks([])
     axg[1].set_xticks([])
     axg[1].set_yticks([])
+    axg[2].set_xticks([])
+    axg[2].set_yticks([])
 
     plt.tight_layout()
-    plt.savefig(f"example_output_{i:03}.jpg", dpi=200)
+    plt.savefig(f"figures/example_output_{i:03}.jpg", dpi=200, bbox_inches="tight")
