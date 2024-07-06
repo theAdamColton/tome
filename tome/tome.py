@@ -204,13 +204,14 @@ class TokenMerger:
             b = b.scatter_reduce(
                 dim=1, index=expand_trailing(self.dst_idx, b), src=a, reduce="mean"
             )
-            n = torch.abs(b).scatter_reduce(
+            b_norm = b.norm(p=2, dim=-1)
+            n = b_norm.scatter_reduce(
                 dim=1,
-                index=expand_trailing(self.dst_idx, b),
-                src=torch.abs(a),
-                reduce="max",
+                index=self.dst_idx,
+                src=a.norm(p=2, dim=-1),
+                reduce="amax",
             )
-            b = (b / torch.abs(b)) * n
+            b = (b / b_norm.unsqueeze(-1)) * n.unsqueeze(-1)
         elif mode == "drop":
             pass
         else:
